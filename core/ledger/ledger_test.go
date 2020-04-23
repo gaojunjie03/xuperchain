@@ -437,3 +437,43 @@ func TestTruncate(t *testing.T) {
 
 	ledger.Close()
 }
+
+
+func TestVerifyMerkle(t *testing.T) {
+	workSpace, dirErr := ioutil.TempDir("/tmp", "")
+	if dirErr != nil {
+		t.Fatal(dirErr)
+	}
+	os.RemoveAll(workSpace)
+	defer os.RemoveAll(workSpace)
+	ledger, err := NewLedger(workSpace, nil, nil, DefaultKvEngine, crypto_client.CryptoTypeDefault)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t1 := &pb.Transaction{}
+	t2 := &pb.Transaction{}
+	t1.TxOutputs = append(t1.TxOutputs, &pb.TxOutput{Amount: []byte("666"), ToAddr: []byte(BobAddress)})
+	t1.Coinbase = true
+	t1.Desc = []byte("{}")
+	t1.Txid, _ = txhash.MakeTransactionID(t1)
+	t2.TxInputs = append(t2.TxInputs, &pb.TxInput{RefTxid: t1.Txid, RefOffset: 0, FromAddr: []byte(AliceAddress)})
+	t2.Txid, _ = txhash.MakeTransactionID(t2)
+	ecdsaPk, pkErr := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	t.Logf("pkSk: %v", ecdsaPk)
+	if pkErr != nil {
+		t.Fatal("fail to generate publice/private key")
+	}
+	block, err := ledger.FormatBlock([]*pb.Transaction{t1, t2},
+		[]byte("xchain-Miner-1"),
+		ecdsaPk,
+		123456789,
+		0,
+		0,
+		[]byte{}, big.NewInt(0),
+	)
+
+	fmt.Println(block.Blockid)
+
+	fmt.Println(block.MerkleRoot)
+
+}
